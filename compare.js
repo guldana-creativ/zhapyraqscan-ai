@@ -234,7 +234,7 @@
     if (!T.length) { $('cmpBody').innerHTML = '<p>Сынақ жиынтығы жүктелмеді.</p>'; return; }
     if (!window.LEAF_TEST_LOADED) {
       $('cmpBody').innerHTML = '<p class="muted"><span class="spinner"></span>100 сурет жүктелуде (4 МБ)…</p>';
-      if (!loadingImgs) { loadingImgs = true; var sc = document.createElement('script'); sc.src = 'assets/js/test_images.js'; sc.onload = render; sc.onerror = function () { loadingImgs = false; $('cmpBody').innerHTML = '<p class="alert">Суреттер жүктелмеді. Интернетті тексеріп, бетті жаңартыңыз.</p>'; }; document.body.appendChild(sc); }
+      if (!loadingImgs) { loadingImgs = true; var sc = document.createElement('script'); sc.src = 'test_images.js'; sc.onload = render; sc.onerror = function () { loadingImgs = false; $('cmpBody').innerHTML = '<p class="alert">Суреттер жүктелмеді. Интернетті тексеріп, бетті жаңартыңыз.</p>'; }; document.body.appendChild(sc); }
       return;
     }
     document.querySelectorAll('#cmpTabs button').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.cmp === tab ? 'true' : 'false'); });
