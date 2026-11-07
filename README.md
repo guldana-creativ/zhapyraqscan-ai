@@ -22,22 +22,25 @@
 
 ## Файлдар
 
+Барлық файл бір жерде тұрады, тек сервер функциялары `api` папкасында:
+
 ```
-index.html                басты бет
-assets/css/style.css      безендіру
-assets/js/analyzer.js     түс индикаторы (жапырақты бөлу, түс бойынша топтау, ережелер)
-assets/js/kb_plants.js    өсімдіктер каталогы
-assets/js/kb_disorders.js аурулар мен бұзылыстар
-assets/js/kb_pests.js     зиянкестер, пайдалы жәндіктер, дереккөздер
-assets/js/kb_key.js       анықтағыш кілт
-assets/js/samples.js      үлгі жапырақтар (суретсіз сынап көру үшін)
-assets/js/pest_art.js     зиянкестердің суреттемелері
-assets/js/leaf_sets.js    салыстыру жиынтығы (100 сурет) және анықтамалықтың үлгі суреттері (132)
-assets/js/compare.js      салыстырмалы зерттеу беті
-assets/js/ref_images.js, test_images.js – PlantVillage және PlantDoc суреттері
-assets/js/app.js          интерфейс
-api/analyze.js            AI көру модулі (Vercel сервер функциясы)
-api/status.js             AI кілттерінің бапталғанын тексеру
+index.html        басты бет
+style.css         безендіру
+icon.svg          белгіше
+analyzer.js       түс индикаторы (жапырақты бөлу, түс бойынша топтау, ережелер)
+kb_plants.js      өсімдіктер каталогы
+kb_disorders.js   аурулар мен бұзылыстар
+kb_pests.js       зиянкестер, пайдалы жәндіктер, дереккөздер
+kb_key.js         анықтағыш кілт
+samples.js        үлгі жапырақтар (суретсіз сынап көру үшін)
+pest_art.js       зиянкестердің суреттемелері
+leaf_sets.js      салыстыру жиынтығы (100 сурет) және анықтамалықтың үлгі суреттері (132)
+ref_images.js, test_images.js – PlantVillage және PlantDoc суреттері
+compare.js        салыстырмалы зерттеу беті
+app.js            интерфейс
+api/analyze.js    AI көру модулі (Vercel сервер функциясы)
+api/status.js     AI кілттерінің бапталғанын тексеру
 vercel.json, package.json
 ```
 
@@ -48,7 +51,7 @@ vercel.json, package.json
 ### 1-тәсіл: GitHub арқылы (ең оңайы)
 
 1. github.com сайтында жаңа репозиторий ашыңыз (**New repository**, мысалы `zhapyraqscan-ai`).
-2. **Add file → Upload files** батырмасын басып, осы бумадағы **барлық файлдар мен папкаларды** сүйреп тастаңыз. `index.html` репозиторийдің ең жоғарғы деңгейінде тұруы керек. **Commit changes** басыңыз.
+2. **Add file → Upload files** батырмасын басып, осы бумадағы **барлық файлдар мен `api` папкасын** сүйреп тастаңыз («choose your files» папканы таңдай алмайды). `index.html` репозиторийдің ең жоғарғы деңгейінде, `analyze.js` пен `status.js` міндетті түрде `api` папкасында тұруы керек. **Commit changes** басыңыз.
 3. vercel.com сайтына GitHub аккаунтыңызбен кіріңіз → **Add New… → Project** → репозиторийді таңдап **Import**.
 4. Framework Preset — **Other**, Build Command мен Output Directory бос қалады. **Deploy** басыңыз.
 5. 1 минуттан кейін сайт `https://сіздің-жоба.vercel.app` мекенжайында ашылады.
@@ -97,7 +100,7 @@ vercel --prod   # негізгі мекенжайға шығару
 
 ## Салыстырмалы зерттеу («Салыстыру» беті)
 
-Мамандар белгілеген 100 сурет (PlantVillage 50, PlantDoc 50; `assets/js/test_images.js`) бойынша үш тәсіл салыстырылады:
+Мамандар белгілеген 100 сурет (PlantVillage 50, PlantDoc 50; `test_images.js`) бойынша үш тәсіл салыстырылады:
 1. **Көзбен бағалау** – оқушы немесе мұғалім әр суретке өсімдік түрі мен жағдайын таңдайды (дұрыс жауап көрсетілмейді).
 2. **Түс индикаторы** – бір батырмамен 100 сурет телефонда талданады.
 3. **AI көру модулі** – әр сурет AI-ға «соқыр» түрде жіберіледі (GEMINI_API_KEY керек, 10–15 минут).
