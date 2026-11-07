@@ -259,7 +259,11 @@
     if (ai) s2 = fs.length ? 'Анықталған мәселе: ' + fs.slice(0, 2).map(function (f) { return '<b>' + esc(f.name) + '</b> (' + esc(f.confidence) + '%)'; }).join(', ') + '.' : 'Ауру мен зиянкес белгілері <b>көрінбейді</b>.';
     else s2 = lt && lt.id !== 'unclear' ? (lt.id === 'healthy' ? 'Түс индикаторы зақым белгісін таппады.' : 'Түс индикаторы тапқан белгі: <b>' + esc(LOCAL_NAMES[lt.id].toLowerCase()) + '</b>.') : 'Белгілер анық емес.';
     var s3 = '';
-    if (r.ok) {
+    var aiHealthy = ai && !fs.length && ai.overall !== 'анықтау мүмкін емес';
+    if (r.ok && aiHealthy && r.severity >= 5) {
+      // AI зақым таппады, ал түс индикаторы қоңыр/сары аймақ тапты: бұл көбіне жеміс, сабақ, көлеңке немесе фон
+      s3 = 'Жапырақ сау көрінеді. <span class="muted">Түс индикаторы ' + String(r.severity).replace('.', ',') + '% қоңыр немесе сары аймақ тапты, бірақ бұл суреттегі жеміс, сабақ, көлеңке немесе фон болуы мүмкін. Күмәнді болса, анықтағышпен нақтылаңыз.</span>';
+    } else if (r.ok) {
       s3 = 'Жапырақтың <b>' + String(r.severity).replace('.', ',') + '%</b>-ы зақымданған (' + r.severityClass.name.toLowerCase() + ').';
       if (ai && ai.severity_percent != null && Math.abs(ai.severity_percent - r.severity) > 15) s3 += ' <span class="muted">AI бағасы: шамамен ' + esc(ai.severity_percent) + '%.</span>';
     }
@@ -428,7 +432,7 @@
   function callAI(images, plantHint, local) {
     return fetch('api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ images: images, plantHint: plantHint || '', local: local, kb: kbBrief() }) })
-      .then(function (x) { return x.json().catch(function () { return { ok: false, error: 'Сервер қатесі (' + x.status + ')' }; }); })
+      .then(function (x) { return x.json().catch(function () { return { ok: false, error: x.status === 504 ? 'AI уақытында жауап бермеді (504). Бір минуттан кейін қайталаңыз' : 'Сервер қатесі (' + x.status + ')' }; }); })
       .then(function (j) { if (!j.ok) throw new Error(j.error || 'AI жауап бермеді'); return j; });
   }
   function runAI() {

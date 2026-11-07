@@ -45,6 +45,18 @@ function extractJSON(text) {
   return JSON.parse(t);
 }
 
+// Vercel функциясы 60 секундтан ұзақ жұмыс істей алмайды (vercel.json → maxDuration).
+// Сондықтан әр модельге уақыт шегі қойылады: жауап кешіксе, жылдамырақ модельге ауысамыз.
+const T_TOTAL = +process.env.AI_TOTAL_MS || 54000;   // барлық әрекетке
+const T_ATTEMPT = +process.env.AI_ATTEMPT_MS || 30000; // бір модельге
+
+async function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.max(1000, ms));
+  try { return await fetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(timer); }
+}
+
 async function callPlantNet(key, imgs) {
   const form = new FormData();
   imgs.forEach((im, i) => {
@@ -52,7 +64,7 @@ async function callPlantNet(key, imgs) {
     form.append('images', new Blob([Buffer.from(im.b64, 'base64')], { type: im.mime }), `leaf${i}.jpg`);
   });
   const url = `https://my-api.plantnet.org/v2/identify/all?api-key=${encodeURIComponent(key)}&nb-results=5&lang=ru&include-related-images=false`;
-  const r = await fetch(url, { method: 'POST', body: form });
+  const r = await fetchWithTimeout(url, { method: 'POST', body: form }, 10000);
   if (r.status === 404) return []; // түр табылмады
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j && j.message) || `Pl@ntNet қатесі: ${r.status}`);
@@ -64,33 +76,53 @@ async function callPlantNet(key, imgs) {
   })).filter((x) => x.score >= 2);
 }
 
-async function callGemini(key, imgs, prompt) {
-  const models = [process.env.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash'].filter(Boolean);
+// Gemini модельдерінің тізімі: алдымен ең жақсысы, кешіксе – жылдам «lite» модельдер.
+const GEMINI_MODELS = ['gemini-flash-latest', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-2.5-flash'];
+
+async function callGemini(key, imgs, prompt, deadline) {
+  const models = [...new Set([process.env.GEMINI_MODEL].concat(GEMINI_MODELS).filter(Boolean))];
   const parts = [{ text: prompt }].concat(imgs.map((im) => ({ inline_data: { mime_type: im.mime, data: im.b64 } })));
-  let lastErr;
+  let lastErr = null, onlyLite = false;
   for (const model of models) {
+    if (onlyLite && !/lite/.test(model)) continue;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
-    const r = await fetch(url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } })
-    });
-    if (r.status === 404) { lastErr = new Error(`Модель табылмады: ${model}`); continue; }
-    const j = await r.json().catch(() => ({}));
-    if (r.status === 429 || r.status === 503) { lastErr = new Error((j.error && j.error.message) || 'Gemini уақытша бос емес, бір минуттан кейін қайталаңыз'); continue; }
-    if (!r.ok) throw new Error((j.error && j.error.message) || `Gemini қатесі: ${r.status}`);
-    const text = ((((j.candidates || [])[0] || {}).content || {}).parts || []).map((p) => p.text || '').join('');
-    return { model, result: extractJSON(text) };
+    let thinking = true; // ойлану деңгейі «low» – жауап тез келеді
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const left = deadline - Date.now();
+      if (left < 5000) throw lastErr || new Error('AI уақытында жауап бермеді, бір минуттан кейін қайталаңыз');
+      const generationConfig = { temperature: 0.1, responseMimeType: 'application/json' };
+      if (thinking) generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+      let r;
+      try {
+        r = await fetchWithTimeout(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+          body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig })
+        }, Math.min(T_ATTEMPT, left - 2000));
+      } catch (e) {
+        if (e.name === 'AbortError') { lastErr = new Error('AI уақытында жауап бермеді, бір минуттан кейін қайталаңыз'); onlyLite = true; }
+        else lastErr = new Error('Gemini серверіне қосылу мүмкін болмады: ' + e.message);
+        break;
+      }
+      const j = await r.json().catch(() => ({}));
+      const msg = (j.error && j.error.message) || '';
+      if (r.status === 400 && thinking && /thinking/i.test(msg)) { thinking = false; continue; } // бұл модель ойлану деңгейін қолдамайды
+      if (r.status === 404 || r.status === 403) { lastErr = new Error(msg || `Модель қолжетімсіз: ${model}`); break; }
+      if (r.status === 429 || r.status >= 500) { lastErr = new Error(msg || 'Gemini уақытша бос емес, бір минуттан кейін қайталаңыз'); break; }
+      if (!r.ok) throw new Error(msg || `Gemini қатесі: ${r.status}`);
+      const text = ((((j.candidates || [])[0] || {}).content || {}).parts || []).filter((p) => !p.thought).map((p) => p.text || '').join('');
+      try { return { model, result: extractJSON(text) }; } catch (e) { lastErr = e; break; }
+    }
   }
   throw lastErr || new Error('Gemini моделі қолжетімсіз');
 }
 
-async function callClaude(key, imgs, prompt) {
+async function callClaude(key, imgs, prompt, deadline) {
   const model = process.env.CLAUDE_MODEL || 'claude-sonnet-5-5';
   const content = imgs.map((im) => ({ type: 'image', source: { type: 'base64', media_type: im.mime, data: im.b64 } })).concat([{ type: 'text', text: prompt }]);
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  const r = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model, max_tokens: 2500, temperature: 0.1, messages: [{ role: 'user', content }] })
-  });
+  }, Math.max(5000, deadline - Date.now() - 2000));
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || `Claude қатесі: ${r.status}`);
   return { model, result: extractJSON((j.content || []).map((c) => c.text || '').join('')) };
@@ -114,6 +146,7 @@ function parseImages(body) {
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'Тек POST сұранысы қабылданады' }); return; }
+  const deadline = Date.now() + T_TOTAL;
   try {
     let body = req.body;
     if (typeof body === 'string') body = JSON.parse(body || '{}');
@@ -126,8 +159,8 @@ export default async function handler(req, res) {
     }
     const prompt = buildPrompt(body, plantnet, imgs.length);
     let out = null, provider = null;
-    if (process.env.GEMINI_API_KEY) { provider = 'Google Gemini'; out = await callGemini(process.env.GEMINI_API_KEY, imgs, prompt); }
-    else if (process.env.ANTHROPIC_API_KEY) { provider = 'Anthropic Claude'; out = await callClaude(process.env.ANTHROPIC_API_KEY, imgs, prompt); }
+    if (process.env.GEMINI_API_KEY) { provider = 'Google Gemini'; out = await callGemini(process.env.GEMINI_API_KEY, imgs, prompt, deadline); }
+    else if (process.env.ANTHROPIC_API_KEY) { provider = 'Anthropic Claude'; out = await callClaude(process.env.ANTHROPIC_API_KEY, imgs, prompt, deadline); }
     else if (!plantnet) { res.status(503).json({ ok: false, error: 'AI кілті бапталмаған. Vercel параметрлеріне GEMINI_API_KEY қосыңыз (README нұсқаулығы).' }); return; }
     res.status(200).json({ ok: true, provider, model: out && out.model, result: out ? out.result : null, plantnet, plantnetError });
   } catch (e) {
