@@ -1,0 +1,10 @@
+{
+  "name": "zhapyraqscan-ai",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ЖапырақСкан AI — өсімдік жапырақтарының ауруларын жасанды интеллект көмегімен ерте анықтау платформасы",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  }
+}
