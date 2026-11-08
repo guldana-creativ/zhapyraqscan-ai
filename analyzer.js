@@ -319,7 +319,7 @@
     var largestLesion = spotAreas.length ? spotAreas[0] : 0;
     var rustMask = new Uint8Array(N); for (i = 0; i < N; i++) rustMask[i] = cls[i] === C.RUST ? 1 : 0;
     var rustSpots = components(rustMask, w, h).comps.filter(function (c) { return c.area >= Math.max(2, leafArea * 0.0001); }).length;
-    // ұсақ сары нүктелер (кене, трипс белгісі)
+    // ұсақ сары нүктелер (нүктелі хлороз)
     var chlMask = new Uint8Array(N); for (i = 0; i < N; i++) chlMask[i] = cls[i] === C.CHLOROSIS ? 1 : 0;
     var chlComps = components(chlMask, w, h).comps;
     var tinyY = chlComps.filter(function (c) { return c.area >= 2 && c.area <= Math.max(6, leafArea * 0.0006); }).length;

@@ -2,13 +2,13 @@
 (function () {
   'use strict';
   var A = window.LeafAnalyzer, SMP = window.LeafSamples;
-  var KP = window.KB_PLANTS, KD = window.KB_DIS, KX = window.KB_PESTS, KK = window.KB_KEY;
-  var PLANTS = KP.PLANTS, CATS = KP.CATS, DIS = KD.DISORDERS, TYPES = KD.TYPES, PESTS = KX.PESTS, BEN = KX.BENEFICIAL, SRC = KX.SOURCES;
+  var KP = window.KB_PLANTS, KD = window.KB_DIS, KS = window.KB_SOURCES, KK = window.KB_KEY;
+  var PLANTS = KP.PLANTS, CATS = KP.CATS, DIS = KD.DISORDERS, TYPES = KD.TYPES, SRC = KS.SOURCES;
   var $ = function (id) { return document.getElementById(id); };
   var JOURNAL_KEY = 'zhapyraqscan_journal_v2';
   var ANALYSIS_MAX = 512, AI_MAX = 1024;
   var state = { orig: null, overlay: null, result: null, aiImage: null, thumb: null, ai: null, plantnet: null, aiStatus: null, aiLoading: false, extra: [] };
-  var REF = window.LEAF_REF || {}, PEST_GROUPS = KX.PEST_GROUPS || {};
+  var REF = window.LEAF_REF || {};
   function imgSrc(f) { return (window.LEAF_IMG && window.LEAF_IMG[f]) || f; }
 
   var LOCAL_NAMES = {
@@ -17,7 +17,7 @@
     bacterial_spot: 'Көптеген ұсақ қара дақтар', rust: 'Қызғылт сары (тат түсті) томпақтар', powdery: 'Ақ ұнтақ, өңез',
     blight: 'Ірі қара-қоңыр дақтар', phosphorus: 'Күлгін-қызыл реңк'
   };
-  var KIND_COLORS = { 'ауру': '#8a5a2b', 'зиянкес': '#b8462b', 'жұмыртқа': '#c0702a', 'пайдалы жәндік': '#2e8b4a', 'қоректік зат': '#c08a10', 'су режимі': '#2a6fb0', 'ауа райы': '#d0632a', 'топырақ': '#7a5a3a', 'күтім': '#4a7a7a' };
+  var KIND_COLORS = { 'ауру': '#8a5a2b', 'қоректік зат': '#c08a10', 'су режимі': '#2a6fb0', 'ауа райы': '#d0632a', 'топырақ': '#7a5a3a', 'күтім': '#4a7a7a' };
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function pct(x, d) { return (x * 100).toFixed(d == null ? 1 : d).replace('.', ','); }
@@ -30,8 +30,6 @@
   /* ---------------- анықтамалық көмекшілері ---------------- */
   function kbItem(id) {
     if (DIS[id]) return { kind: 'disorder', id: id, d: DIS[id] };
-    if (PESTS[id]) return { kind: 'pest', id: id, d: PESTS[id] };
-    if (BEN[id]) return { kind: 'beneficial', id: id, d: BEN[id] };
     var p = PLANTS.filter(function (x) { return x.id === id; })[0];
     return p ? { kind: 'plant', id: id, d: p } : null;
   }
@@ -58,20 +56,15 @@
     sun: '<circle cx="32" cy="32" r="12" fill="#f0a93a"/><g stroke="#f0a93a" stroke-width="3">' + [0, 45, 90, 135, 180, 225, 270, 315].map(function (a) { var r = a * Math.PI / 180; return '<line x1="' + (32 + 17 * Math.cos(r)) + '" y1="' + (32 + 17 * Math.sin(r)) + '" x2="' + (32 + 25 * Math.cos(r)) + '" y2="' + (32 + 25 * Math.sin(r)) + '"/>'; }).join('') + '</g>',
     soil: '<rect x="8" y="34" width="48" height="18" rx="3" fill="#9a7a5a"/><circle cx="20" cy="42" r="2" fill="#fff"/><circle cx="34" cy="46" r="2" fill="#fff"/><circle cx="46" cy="40" r="2" fill="#fff"/><path d="M32 34V16M32 22l-8-6M32 26l8-6" stroke="#3f9b48" stroke-width="3" fill="none"/>',
     care: '<rect x="18" y="30" width="28" height="22" rx="3" fill="#c98a5a"/><path d="M32 30c0-10-10-14-14-20 10 0 14 6 14 12 0-6 4-12 14-12-4 6-14 10-14 20z" fill="#3f9b48"/>',
-    insect: '<ellipse cx="32" cy="36" rx="10" ry="14" fill="#7a4a2a"/><circle cx="32" cy="18" r="6" fill="#5a3a2a"/><g stroke="#5a3a2a" stroke-width="2.5">' + '<line x1="22" y1="30" x2="10" y2="24"/><line x1="42" y1="30" x2="54" y2="24"/><line x1="22" y1="38" x2="9" y2="40"/><line x1="42" y1="38" x2="55" y2="40"/><line x1="23" y1="46" x2="12" y2="54"/><line x1="41" y1="46" x2="52" y2="54"/><line x1="29" y1="13" x2="24" y2="5"/><line x1="35" y1="13" x2="40" y2="5"/></g>',
-    ladybug: '<circle cx="32" cy="36" r="16" fill="#d23b2b"/><line x1="32" y1="20" x2="32" y2="52" stroke="#222" stroke-width="2"/><circle cx="32" cy="20" r="7" fill="#222"/><circle cx="25" cy="32" r="3" fill="#222"/><circle cx="39" cy="32" r="3" fill="#222"/><circle cx="26" cy="43" r="3" fill="#222"/><circle cx="38" cy="43" r="3" fill="#222"/>',
     leaf: '<path d="M32 6C18 18 12 30 14 42c2 9 9 15 18 16 9-1 16-7 18-16 2-12-4-24-18-36z" fill="#5fae6a"/><path d="M32 14v44" stroke="#e5f3df" stroke-width="2"/>'
   };
   function iconFor(item) {
     if (!item) return ICONS.leaf;
     if (item.kind === 'plant') return ICONS.leaf;
-    if (item.kind === 'beneficial') return ICONS.ladybug;
-    if (item.kind === 'pest') return ICONS.insect;
     var t = TYPES[item.d.type]; return ICONS[(t && t.icon) || 'leaf'] || ICONS.leaf;
   }
   function thumbHTML(item, cls) {
-    var w = item && item.d && item.d.wiki, art = item && window.PEST_ART && window.PEST_ART[item.id];
-    if (art) return '<div class="thumb art ' + (cls || '') + '"' + (w ? ' data-wiki="' + esc(w) + '"' : '') + '>' + art + '</div>';
+    var w = item && item.d && item.d.wiki;
     return '<div class="thumb ' + (cls || '') + '"' + (w ? ' data-wiki="' + esc(w) + '"' : '') + '><svg viewBox="0 0 64 64" aria-hidden="true">' + iconFor(item) + '</svg></div>';
   }
   var wikiCache = {};
@@ -96,22 +89,13 @@
       h += thumbHTML(item, 'big') + '<h2 id="modalTitle">' + esc(d.kk) + '</h2><p class="latin">' + esc(d.lat) + (d.ru ? ' · ' + esc(d.ru) : '') + '</p><p>' + catChips(d.cat) + '</p>';
       if (d.poison) h += '<p class="poison p' + d.poison + '">' + esc(POISON[d.poison]) + '</p>';
       h += '<p>' + esc(d.about) + '</p>';
-      if (d.risks && d.risks.length) h += '<h4>Жиі кездесетін аурулар мен зиянкестер</h4><div class="mini-grid">' + d.risks.map(function (r) { var it = kbItem(r); return it ? '<button class="mini" data-open="' + r + '">' + thumbHTML(it) + '<span>' + esc(it.d.name) + '</span></button>' : ''; }).join('') + '</div>';
+      if (d.risks && d.risks.length) h += '<h4>Жиі кездесетін аурулар мен бұзылыстар</h4><div class="mini-grid">' + d.risks.map(function (r) { var it = kbItem(r); return it ? '<button class="mini" data-open="' + r + '">' + thumbHTML(it) + '<span>' + esc(it.d.name) + '</span></button>' : ''; }).join('') + '</div>';
     } else if (item.kind === 'disorder') {
       var t = TYPES[d.type];
       h += thumbHTML(item, 'big') + '<h2 id="modalTitle">' + esc(d.name) + '</h2><p><span class="chip-tag" style="--c:' + t.color + '">' + esc(t.name) + '</span></p><p>' + esc(d.short) + '</p>';
       h += '<h4>Белгілері</h4>' + list(d.signs) + (d.causes.length ? '<h4>Себептері</h4>' + list(d.causes) : '');
       h += '<h4>Шұғыл шара</h4>' + list(d.now) + '<h4>Қауіпсіз шаралар</h4>' + list(d.bio) + (d.chem.length ? '<h4>Химиялық шара</h4>' + list(d.chem) : '') + '<h4>Алдын алу</h4>' + list(d.prevention);
       if (d.plants && d.plants.length) h += '<h4>Қай өсімдіктерде</h4><p>' + d.plants.map(function (p) { var it = kbItem(p); return it ? '<button class="link" data-open="' + p + '">' + esc(it.d.kk) + '</button>' : ''; }).join(', ') + '</p>';
-    } else if (item.kind === 'pest') {
-      h += thumbHTML(item, 'big') + '<h2 id="modalTitle">' + esc(d.name) + '</h2><p class="latin">' + esc(d.lat) + ' · ' + esc(d.kind) + '</p>';
-      h += '<h4>Қалай көрінеді</h4><p>' + esc(d.look) + '</p><h4>Жұмыртқасы</h4><p>' + esc(d.eggs) + '</p><h4>Зияны</h4><p>' + esc(d.damage) + '</p>';
-      h += '<h4>Белгілері</h4>' + list(d.signs) + '<h4>Қолмен күресу</h4>' + list(d.mech) + '<h4>Қауіпсіз шаралар</h4>' + list(d.bio) + (d.chem.length ? '<h4>Химиялық шара</h4>' + list(d.chem) : '') + '<h4>Алдын алу</h4>' + list(d.prevention);
-      if (d.enemies && d.enemies.length) h += '<h4>Табиғи жаулары (оларды сақтаңыз)</h4><p>' + d.enemies.map(function (e) { return '<button class="link" data-open="' + e + '">' + esc(BEN[e].name) + '</button>'; }).join(', ') + '</p>';
-      if (d.plants && d.plants.length) h += '<h4>Қай өсімдіктерде</h4><p>' + d.plants.map(function (p) { var it = kbItem(p); return it ? '<button class="link" data-open="' + p + '">' + esc(it.d.kk) + '</button>' : ''; }).join(', ') + '</p>';
-    } else {
-      h += thumbHTML(item, 'big') + '<h2 id="modalTitle">' + esc(d.name) + '</h2><p class="latin">' + esc(d.lat) + '</p><p class="good">Пайдалы жәндік – жоймаңыз!</p>';
-      h += '<h4>Қалай көрінеді</h4><p>' + esc(d.look) + '</p><h4>Жұмыртқасы</h4><p>' + esc(d.eggs) + '</p><h4>Пайдасы</h4><p>' + esc(d.benefit) + '</p><h4>Қалай қорғаймыз</h4><p>' + esc(d.protect) + '</p>';
     }
     var refs = (REF[item.id] || []);
     if (refs.length) h += '<h4>Жинақтағы нақты суреттер</h4><div class="ref-grid">' + refs.slice(0, 8).map(function (r) { var pl = kbItem(r.plant); return '<figure><img src="' + imgSrc(r.file) + '" alt="" loading="lazy"><figcaption>' + esc(pl ? pl.d.kk : '') + ' · ' + esc(r.src) + '</figcaption></figure>'; }).join('') + '</div>';
@@ -245,7 +229,7 @@
 
   function topFindings() {
     var ai = state.ai; if (!ai || ai.is_plant === false) return [];
-    return (ai.findings || []).filter(function (f) { return f.kind !== 'пайдалы жәндік'; }).sort(function (a, b) { return (b.confidence || 0) - (a.confidence || 0); });
+    return (ai.findings || []).sort(function (a, b) { return (b.confidence || 0) - (a.confidence || 0); });
   }
   function renderSummary() {
     var el = $('summaryCard'), r = state.result, cp = currentPlant(), ai = state.ai, h = '<p class="card-kicker">Қорытынды</p>';
@@ -256,7 +240,7 @@
     var groups = cp.kb ? cp.kb.cat.map(function (c) { return CATS[c] ? CATS[c].name.toLowerCase() : ''; }).filter(Boolean).join(', ') : (cp.ai && cp.ai.group) || '';
     var s1 = name ? 'Бұл – <b>' + esc(name) + '</b>' + (lat ? ' (<i>' + esc(lat) + '</i>)' : '') + ' жапырағы' + (groups ? ' [' + esc(groups) + ']' : '') + '.' : 'Өсімдік түрі анықталмады' + (state.aiStatus && state.aiStatus.ai ? '.' : ' (AI кілті қосылмаған).');
     var fs = topFindings(), lt = localTop(), s2;
-    if (ai) s2 = fs.length ? 'Анықталған мәселе: ' + fs.slice(0, 2).map(function (f) { return '<b>' + esc(f.name) + '</b> (' + esc(f.confidence) + '%)'; }).join(', ') + '.' : 'Ауру мен зиянкес белгілері <b>көрінбейді</b>.';
+    if (ai) s2 = fs.length ? 'Анықталған мәселе: ' + fs.slice(0, 2).map(function (f) { return '<b>' + esc(f.name) + '</b> (' + esc(f.confidence) + '%)'; }).join(', ') + '.' : 'Ауру белгілері <b>көрінбейді</b>.';
     else s2 = lt && lt.id !== 'unclear' ? (lt.id === 'healthy' ? 'Түс индикаторы зақым белгісін таппады.' : 'Түс индикаторы тапқан белгі: <b>' + esc(LOCAL_NAMES[lt.id].toLowerCase()) + '</b>.') : 'Белгілер анық емес.';
     var s3 = '';
     var aiHealthy = ai && !fs.length && ai.overall !== 'анықтау мүмкін емес';
@@ -322,21 +306,21 @@
     if (ai && ai.is_plant !== false) {
       var fs = (ai.findings || []).slice().sort(function (a, b) { return (b.confidence || 0) - (a.confidence || 0); });
       var ov = ai.overall || (fs.length ? 'Мәселе табылды' : 'Сау'); h += '<h3>' + esc(ov.charAt(0).toUpperCase() + ov.slice(1)) + '</h3>';
-      if (!fs.length) h += '<p>Ауру, зиянкес және бұзылыс белгілері көрінбейді.</p>';
+      if (!fs.length) h += '<p>Ауру мен физиологиялық бұзылыс белгілері көрінбейді.</p>';
       h += fs.map(function (f) {
         var it = f.kb_id && kbItem(f.kb_id), col = KIND_COLORS[f.kind] || '#666';
         return '<div class="finding">' + (it ? thumbHTML(it) : '') + '<div class="f-body"><div class="f-head"><span class="chip-tag" style="--c:' + col + '">' + esc(f.kind || '') + '</span><b>' + esc(f.name || (it && it.d.name)) + '</b><span class="f-pct">' + esc(f.confidence) + '%</span></div>' +
           '<div class="bar"><span style="width:' + (+f.confidence || 0) + '%"></span></div>' + (f.evidence ? '<p class="small">Суретте: ' + esc(f.evidence) + (f.stage ? ' (' + esc(f.stage) + ' саты)' : '') + '</p>' : '') +
           (it ? '<button class="link" data-open="' + f.kb_id + '">Анықтамалықта ашу</button>' : '') + '</div></div>';
       }).join('');
-      var ag = agreement(fs.filter(function (f) { return f.kind !== 'пайдалы жәндік'; }), lt);
+      var ag = agreement(fs, lt);
       if (ag) h += '<p class="agree a' + ag.ok + '">' + esc(ag.t) + '</p>';
       if (ai.note) h += '<p class="note">' + esc(ai.note) + '</p>';
     } else {
-      if (state.aiLoading) h += '<p><span class="spinner"></span>AI ауру мен зиянкесті іздеп жатыр…</p>';
+      if (state.aiLoading) h += '<p><span class="spinner"></span>AI ауру белгілерін іздеп жатыр…</p>';
       var cp = currentPlant();
       if (!lt || lt.id === 'unclear') h += '<h3>Белгілер анық емес</h3><p>Түс индикаторы нақты белгі таппады. Суретті жақсы жарықта қайта түсіріңіз немесе анықтағышты қолданыңыз.</p>';
-      else if (lt.id === 'healthy') h += '<h3>Зақым белгісі байқалмады</h3>' + (r.diagnoses[1] && r.diagnoses[1].id !== 'healthy' && r.diagnoses[1].score >= 0.35 ? '<p class="agree a1">Әлсіз белгі бар: «' + esc(LOCAL_NAMES[r.diagnoses[1].id].toLowerCase()) + '». Бұл аурудың ең ерте сатысы болуы мүмкін – өсімдікті 3–5 күннен кейін қайта тексеріп, журналға сақтаңыз.</p>' : '') + '<p class="small">Түс индикаторы тек түстерді өлшейді: су тапшылығы, зиянкестер мен вирустардың кейбір белгілері түспен көрінбеуі мүмкін.</p>';
+      else if (lt.id === 'healthy') h += '<h3>Зақым белгісі байқалмады</h3>' + (r.diagnoses[1] && r.diagnoses[1].id !== 'healthy' && r.diagnoses[1].score >= 0.35 ? '<p class="agree a1">Әлсіз белгі бар: «' + esc(LOCAL_NAMES[r.diagnoses[1].id].toLowerCase()) + '». Бұл аурудың ең ерте сатысы болуы мүмкін – өсімдікті 3–5 күннен кейін қайта тексеріп, журналға сақтаңыз.</p>' : '') + '<p class="small">Түс индикаторы тек түстерді өлшейді: су тапшылығы мен вирустардың кейбір белгілері түспен көрінбеуі мүмкін.</p>';
       else {
         var lg = localGroups();
         h += '<h3>' + esc(LOCAL_NAMES[lt.id]) + '</h3>' + (lg[1] ? '<p class="small muted">Қосымша белгі: ' + esc(LOCAL_NAMES[lg[1]].toLowerCase()) + '</p>' : '') + '<p class="small">Бұл белгі мына себептердің біріне тән' + (cp.kb ? ' (' + esc(cp.kb.kk) + ' үшін жиі кездесетіндері бірінші тұр)' : '') + ':</p>';
@@ -381,7 +365,6 @@
     if (!now.length && !safe.length) {
       var lt = localTop(), cp = currentPlant(), id = lt && lt.id !== 'unclear' ? (lt.id === 'healthy' ? 'healthy' : candidatesFor(localGroups(), cp.kb)[0]) : null, it = id && kbItem(id);
       if (it && it.kind === 'disorder') { now = it.d.now; safe = it.d.bio; chem = it.d.chem; prev = it.d.prevention; h += '<p class="small muted">Ең ықтимал себеп бойынша: <b>' + esc(it.d.name) + '</b></p>'; }
-      else if (it && it.kind === 'pest') { now = it.d.mech; safe = it.d.bio; chem = it.d.chem; prev = it.d.prevention; }
     }
     if (!now.length && !safe.length) { el.innerHTML = h + '<p class="muted">Нақты себеп анықталған соң ұсыныс шығады.</p>'; return; }
     h += (now.length ? '<h4>Шұғыл</h4>' + list(now) : '') + (safe.length ? '<h4>Қауіпсіз, биологиялық шаралар</h4>' + list(safe) : '') +
@@ -408,9 +391,7 @@
   function kbBrief() {
     return {
       plants: PLANTS.map(function (p) { return { id: p.id, name: p.kk + ' / ' + p.lat }; }),
-      disorders: Object.keys(DIS).map(function (k) { return { id: k, name: DIS[k].name }; }),
-      pests: Object.keys(PESTS).map(function (k) { return { id: k, name: PESTS[k].name }; }),
-      beneficial: Object.keys(BEN).map(function (k) { return { id: k, name: BEN[k].name }; })
+      disorders: Object.keys(DIS).map(function (k) { return { id: k, name: DIS[k].name }; })
     };
   }
   function renderExtra() {
@@ -474,21 +455,18 @@
   /* ---------------- анықтамалық ---------------- */
   var libState = { tab: 'plants', filter: 'all', q: '' };
   function renderLibrary() {
-    $('libStats').textContent = PLANTS.length + ' өсімдік, ' + (Object.keys(DIS).length - 1) + ' ауру мен физиологиялық бұзылыс, ' + Object.keys(PESTS).length + ' зиянкес және ' + Object.keys(BEN).length + ' пайдалы жәндік. Әр жазбада белгілері, себебі, күресу жолдары және дереккөзі бар.';
+    $('libStats').textContent = PLANTS.length + ' өсімдік, ' + (Object.keys(DIS).length - 1) + ' ауру мен физиологиялық бұзылыс. Әр жазбада белгілері, себебі, күресу жолдары және дереккөзі бар.';
     document.querySelectorAll('#libTabs button').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.lib === libState.tab ? 'true' : 'false'); });
     var filters = [['all', 'Барлығы']];
     if (libState.tab === 'plants') Object.keys(CATS).forEach(function (c) { filters.push([c, CATS[c].name]); });
     if (libState.tab === 'disorders') Object.keys(TYPES).forEach(function (t) { filters.push([t, TYPES[t].short]); });
-    if (libState.tab === 'pests') Object.keys(PEST_GROUPS).forEach(function (g2) { filters.push([g2, PEST_GROUPS[g2]]); });
     $('libFilter').innerHTML = filters.map(function (f) { return '<button class="chip' + (libState.filter === f[0] ? ' on' : '') + '" data-filter="' + f[0] + '">' + esc(f[1]) + '</button>'; }).join('');
     var q = libState.q.toLowerCase(), items = [];
     if (libState.tab === 'plants') PLANTS.forEach(function (p) { if ((libState.filter === 'all' || p.cat.indexOf(libState.filter) >= 0) && (!q || (p.kk + ' ' + p.lat + ' ' + p.ru).toLowerCase().indexOf(q) >= 0)) items.push({ kind: 'plant', id: p.id, d: p }); });
     if (libState.tab === 'disorders') Object.keys(DIS).forEach(function (k) { var d = DIS[k]; if (k !== 'healthy' && (libState.filter === 'all' || d.type === libState.filter) && (!q || d.name.toLowerCase().indexOf(q) >= 0)) items.push({ kind: 'disorder', id: k, d: d }); });
-    if (libState.tab === 'pests') Object.keys(PESTS).forEach(function (k) { var d = PESTS[k]; if ((libState.filter === 'all' || d.group === libState.filter) && (!q || (d.name + ' ' + d.lat).toLowerCase().indexOf(q) >= 0)) items.push({ kind: 'pest', id: k, d: d }); });
-    if (libState.tab === 'beneficial') Object.keys(BEN).forEach(function (k) { var d = BEN[k]; if (!q || (d.name + ' ' + d.lat).toLowerCase().indexOf(q) >= 0) items.push({ kind: 'beneficial', id: k, d: d }); });
     $('libList').innerHTML = items.length ? items.map(function (it) {
       var d = it.d, title = it.kind === 'plant' ? d.kk : d.name, sub = it.kind === 'plant' ? d.lat : it.kind === 'disorder' ? TYPES[d.type].name : d.lat;
-      var body = it.kind === 'plant' ? catChips(d.cat) + (d.poison === 2 ? '<span class="chip-tag" style="--c:#b8302b">Улы</span>' : '') : it.kind === 'disorder' ? esc(d.short) : it.kind === 'pest' ? esc(d.damage) : esc(d.benefit);
+      var body = it.kind === 'plant' ? catChips(d.cat) + (d.poison === 2 ? '<span class="chip-tag" style="--c:#b8302b">Улы</span>' : '') : esc(d.short);
       return '<button class="lib-card" data-open="' + it.id + '">' + thumbHTML(it) + '<span class="lc-body"><b>' + esc(title) + '</b><i>' + esc(sub) + '</i><span class="lc-text">' + body + '</span></span></button>';
     }).join('') : '<p class="muted">Ештеңе табылмады.</p>';
     hydrateThumbs($('libList'));
@@ -551,11 +529,11 @@
   function renderAbout() {
     $('aboutBody').innerHTML = '<h1>Жоба туралы</h1><p class="lead">«Жасанды интеллект көмегімен әртүрлі өсімдіктер жапырақтарының визуалды белгілерін талдау және олардың аурулары мен физиологиялық бұзылыстарын ерте анықтау» ғылыми жобасының платформасы.</p>' +
       '<dl class="meta"><dt>Автор</dt><dd>Болат Аделья, Е. Бозғұлов атындағы №249 мектеп-лицейі</dd><dt>Ғылыми жетекші</dt><dd>Сараман Гүлдана Жанболатқызы, биология пәнінің мұғалімі, жаратылыстану ғылымдарының магистрі</dd><dt>Мекенжайы</dt><dd>Қазалы ауданы, Қызылорда облысы</dd></dl>' +
-      '<h2>Үш тексеру</h2><ol class="steps"><li><b>AI көру модулі</b> (Gemini, қосымша Pl@ntNet) өсімдік түрін, ауруды, зиянкесті және су мен қоректің жетіспеуін атайды, әр қорытындыға суреттегі дәлелді көрсетеді.</li><li><b>Түс индикаторы</b> телефонның өзінде жұмыс істейді: жапырақты фоннан бөліп, әр нүктені түсіне қарай сау, сарғайған, қураған, ақ өңез т.б. топтарға бөледі және денсаулық индексін есептейді.</li><li><b>Анықтағыш кілт</b> – биологтардың ежелгі әдісі: сұрақтарға жауап бере отырып себепті нақтылаймыз. Интернетсіз де жұмыс істейді.</li></ol>' +
-      '<h2>Білім қоры</h2><p>' + PLANTS.length + ' өсімдік (дәнді, көкөніс, бақша, жеміс, ағаш, бөлме өсімдігі, сәндік гүл, дәрілік, арамшөп, улы өсімдік), ' + (Object.keys(DIS).length - 1) + ' ауру мен бұзылыс, ' + Object.keys(PESTS).length + ' зиянкес (жұмыртқаларымен, 7 топқа бөлінген), ' + Object.keys(BEN).length + ' пайдалы жәндік. Анықтамалықта PlantVillage мен PlantDoc жиынтықтарынан алынған 132 нақты сурет бар. Дереккөздер: Agrios, Marschner, Taiz, CABI, EPPO, UC IPM, Penn State Extension.</p>' +
-      '<h2>Тексеру нәтижелері</h2><ul><li>Платформаны жасау мен тексеруге 9 074 сурет пайдаланылды: PlantVillage (6 496) және PlantDoc (2 578) ғылыми жиынтықтары.</li><li>Баптауға қатыспаған 475 нақты фотода түс индикаторының бірінші нұсқасы сау жапырақтың тек 7,3%-ын сау деп таныды, қазіргі нұсқасы – 86,1%-ын; жалған дабыл 140-тан 21-ге азайды. Ауру жапырақтардың 75,5%-ында мәселе байқалды.</li><li>Ешқашан көрмеген 5 546 PlantVillage фотосында: сезімталдық 76,0%, ерекшелік 83,9%.</li><li>Табиғи ортада түсірілген PlantDoc суреттерінде түс индикаторы сау жапырақты нашар таниды (24,1%), сондықтан жапырақты ақ қағаз үстінде түсіру керек, ал түр мен ауруды AI анықтайды.</li><li>880 синтетикалық суретте: айқын белгілерде 94,5%, ерте сатыда 82,3% дәлдік; сау жапырақ ауру деп танылмады.</li><li>«Салыстыру» бетінде көзбен бағалау, түс индикаторы және AI мамандар белгілеген 100 сурет бойынша салыстырылады.</li></ul>' +
-      '<h2>Жақсы сурет түсіру ережесі</h2><ul class="tips"><li>Жапырақты ақ қағаздың үстіне қойыңыз немесе қолмен ұстап, фон бір түсті болсын.</li><li>Күндізгі шашыраңқы жарықта, тікелей күн сәулесінсіз түсіріңіз.</li><li>Жапырақтың үстін де, астын да түсіріңіз – зиянкестер көбіне астында болады.</li><li>Бір өсімдікті әр 3–7 күн сайын тексеріп, журналға сақтаңыз.</li></ul>' +
-      '<p class="disclaimer">Платформа – оқу-зерттеу құралы. Нақты диагнозды агроном немесе фитосанитарлық зертхана қояды. Шегіртке, бактериялық күйік сияқты карантиндік қауіп байқалса, аудандық фитосанитарлық инспекцияға хабарлаңыз.</p>';
+      '<h2>Үш тексеру</h2><ol class="steps"><li><b>AI көру модулі</b> (Gemini, қосымша Pl@ntNet) өсімдік түрін, ауруды (саңырауқұлақ, бактерия, вирус) және су мен қоректің жетіспеуін атайды, әр қорытындыға суреттегі дәлелді көрсетеді.</li><li><b>Түс индикаторы</b> телефонның өзінде жұмыс істейді: жапырақты фоннан бөліп, әр нүктені түсіне қарай сау, сарғайған, қураған, ақ өңез т.б. топтарға бөледі және денсаулық индексін есептейді.</li><li><b>Анықтағыш кілт</b> – биологтардың ежелгі әдісі: сұрақтарға жауап бере отырып себепті нақтылаймыз. Интернетсіз де жұмыс істейді.</li></ol>' +
+      '<h2>Білім қоры</h2><p>' + PLANTS.length + ' өсімдік (дәнді, көкөніс, бақша, жеміс, ағаш, бөлме өсімдігі, сәндік гүл, дәрілік, арамшөп, улы өсімдік), ' + (Object.keys(DIS).length - 1) + ' ауру мен физиологиялық бұзылыс. Анықтамалықта PlantVillage мен PlantDoc жиынтықтарынан алынған ' + Object.keys(REF).reduce(function (a, k) { return a + REF[k].length; }, 0) + ' нақты сурет бар. Дереккөздер: Agrios, Marschner, Taiz, CABI, EPPO, UC IPM, Penn State Extension.</p>' +
+      '<h2>Тексеру нәтижелері</h2><ul><li>Платформаны жасау мен тексеруге 9 074 сурет пайдаланылды: PlantVillage (6 496) және PlantDoc (2 578) ғылыми жиынтықтары.</li><li>Нәтижелер ауру мен сау жапырақтардың суреттері бойынша есептелді.</li><li>Баптауға қатыспаған 462 нақты фотода түс индикаторының бірінші нұсқасы сау жапырақтың тек 7,3%-ын сау деп таныды, қазіргі нұсқасы – 86,1%-ын; жалған дабыл 140-тан 21-ге азайды. Ауру жапырақтардың 77,4%-ында мәселе байқалды.</li><li>Ешқашан көрмеген 5 397 PlantVillage фотосында: сезімталдық 77,9%, ерекшелік 83,9%.</li><li>Табиғи ортада түсірілген PlantDoc суреттерінде түс индикаторы сау жапырақты нашар таниды (24,1%), сондықтан жапырақты ақ қағаз үстінде түсіру керек, ал түр мен ауруды AI анықтайды.</li><li>880 синтетикалық суретте: айқын белгілерде 94,5%, ерте сатыда 82,3% дәлдік; сау жапырақ ауру деп танылмады.</li><li>«Салыстыру» бетінде көзбен бағалау, түс индикаторы және AI мамандар белгілеген 100 сурет бойынша салыстырылады.</li></ul>' +
+      '<h2>Жақсы сурет түсіру ережесі</h2><ul class="tips"><li>Жапырақты ақ қағаздың үстіне қойыңыз немесе қолмен ұстап, фон бір түсті болсын.</li><li>Күндізгі шашыраңқы жарықта, тікелей күн сәулесінсіз түсіріңіз.</li><li>Жапырақтың үстін де, астын да түсіріңіз – кейбір аурулардың өңезі (мысалы, жалған ұнтақты көгерту) тек астында көрінеді.</li><li>Бір өсімдікті әр 3–7 күн сайын тексеріп, журналға сақтаңыз.</li></ul>' +
+      '<p class="disclaimer">Платформа – оқу-зерттеу құралы. Нақты диагнозды агроном немесе фитосанитарлық зертхана қояды. Бактериялық күйік, цитрустың жасыл ауруы сияқты карантиндік ауру байқалса, аудандық фитосанитарлық инспекцияға хабарлаңыз.</p>';
   }
 
   /* ---------------- салыстыру модуліне арналған функциялар ---------------- */

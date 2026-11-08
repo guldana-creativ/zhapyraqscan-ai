@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ЖапырақСкан AI — өсімдік денсаулығын ерте анықтау</title>
-  <meta name="description" content="Жапырақ суреті бойынша өсімдік түрін, ауруларды, зиянкестерді, су мен қоректің жетіспеуін анықтайтын қазақ тіліндегі платформа.">
+  <meta name="description" content="Жапырақ суреті бойынша өсімдік түрін, ауруларын, су мен қоректің жетіспеуін анықтайтын қазақ тіліндегі платформа.">
   <meta name="theme-color" content="#17301f">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,8 +32,8 @@
     <!-- ============ ТАЛДАУ ============ -->
     <section class="view" data-view="analyze">
       <div class="intro">
-        <h1>Бір сурет – толық жауап: өсімдіктің түрі, ауруы, зиянкесі, зақым пайызы және не істеу керегі</h1>
-        <p class="lead">Әр жерден іздемей, бір платформада: <b>AI көру модулі</b> өсімдік пен ауруды таниды, <b>түс индикаторы</b> зақымның пайызын өлшейді, <b>анықтамалық</b> 76 өсімдік, 42 ауру мен бұзылыс және 30 зиянкес туралы дереккөзімен мәлімет береді.</p>
+        <h1>Бір сурет – толық жауап: өсімдіктің түрі, ауруы, зақым пайызы және не істеу керегі</h1>
+        <p class="lead">Әр жерден іздемей, бір платформада: <b>AI көру модулі</b> өсімдік пен ауруды таниды, <b>түс индикаторы</b> зақымның пайызын өлшейді, <b>анықтамалық</b> 76 өсімдік, 42 ауру мен физиологиялық бұзылыс туралы дереккөзімен мәлімет береді.</p>
       </div>
 
       <div class="workspace">
@@ -84,7 +84,7 @@
             </label>
             <label class="field check">
               <input type="checkbox" id="useAI">
-              <span>AI көру модулі: өсімдік түрі, ауру, зиянкес <em id="aiStatus" class="muted">тексерілуде…</em></span>
+              <span>AI көру модулі: өсімдік түрі мен ауруы <em id="aiStatus" class="muted">тексерілуде…</em></span>
             </label>
             <label class="field check">
               <input type="checkbox" id="wholeImage">
@@ -94,7 +94,7 @@
 
           <div class="empty" id="resultEmpty">
             <h2>Нәтиже осында шығады</h2>
-            <p>Жапырақты жарық жерде, көлеңкесіз түсіріңіз. Жапырақтың үстін де, астын да түсірсеңіз, зиянкестер мен олардың жұмыртқалары жақсы көрінеді.</p>
+            <p>Жапырақты жарық жерде, көлеңкесіз түсіріңіз. Жапырақтың үстін де, астын да түсірсеңіз, кейбір аурулардың тек астында болатын өңезі де көрінеді.</p>
           </div>
 
           <div class="ai-banner" id="aiBanner" hidden></div>
@@ -160,8 +160,6 @@
       <div class="lib-tabs" role="tablist" id="libTabs">
         <button role="tab" data-lib="plants">Өсімдіктер</button>
         <button role="tab" data-lib="disorders">Аурулар мен бұзылыстар</button>
-        <button role="tab" data-lib="pests">Зиянкестер</button>
-        <button role="tab" data-lib="beneficial">Пайдалы жәндіктер</button>
       </div>
       <div class="lib-tools">
         <input type="search" id="libSearch" placeholder="Іздеу: атауы немесе латынша атауы…" aria-label="Анықтамалықтан іздеу">
@@ -216,11 +214,10 @@
 
   <script src="kb_plants.js"></script>
   <script src="kb_disorders.js"></script>
-  <script src="kb_pests.js"></script>
+  <script src="kb_sources.js"></script>
   <script src="kb_key.js"></script>
   <script src="leaf_sets.js"></script>
   <script src="ref_images.js"></script>
-  <script src="pest_art.js"></script>
   <script src="analyzer.js"></script>
   <script src="samples.js"></script>
   <script src="app.js"></script>

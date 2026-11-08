@@ -48,11 +48,11 @@
   }
   function condOptions(plantId, sel) {
     var risks = plantId && PL[plantId] ? PL[plantId].risks : [];
-    var all = Object.keys(window.KB_DIS.DISORDERS).filter(function (k) { return k !== 'healthy'; }).concat(Object.keys(window.KB_PESTS.PESTS));
+    var all = Object.keys(window.KB_DIS.DISORDERS).filter(function (k) { return k !== 'healthy'; });
     var opt = function (id) { return '<option value="' + id + '"' + (sel === id ? ' selected' : '') + '>' + esc(nameOf(id)) + '</option>'; };
     var o = '<option value="">— жағдайын таңдаңыз —</option>' + opt('healthy');
     if (risks.length) o += '<optgroup label="Бұл өсімдікке тән">' + risks.map(opt).join('') + '</optgroup>';
-    o += '<optgroup label="Басқа аурулар мен зиянкестер">' + all.filter(function (k) { return risks.indexOf(k) < 0; }).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'kk'); }).map(opt).join('') + '</optgroup>';
+    o += '<optgroup label="Басқа аурулар мен бұзылыстар">' + all.filter(function (k) { return risks.indexOf(k) < 0; }).sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b), 'kk'); }).map(opt).join('') + '</optgroup>';
     return o + opt('unknown');
   }
   function renderEye() {
@@ -62,7 +62,7 @@
       '<div class="cmp-progress"><div style="width:' + (done / T.length * 100) + '%"></div></div><p class="small">' + done + ' / ' + T.length + ' сурет бағаланды · қазір ' + (i + 1) + '-сурет</p>' +
       '<div class="cmp-eye"><img src="' + Z().imgSrc(t.file) + '" alt="Сынақ суреті ' + (i + 1) + '"><div class="cmp-form">' +
       '<label class="field"><span>Өсімдік түрі</span><select id="eyePlant">' + plantOptions(e.plant) + '</select></label>' +
-      '<label class="field"><span>Жағдайы (ауру, зиянкес немесе сау)</span><select id="eyeCond">' + condOptions(e.plant, e.label) + '</select></label>' +
+      '<label class="field"><span>Жағдайы (ауру немесе сау)</span><select id="eyeCond">' + condOptions(e.plant, e.label) + '</select></label>' +
       '<div class="save-actions"><button class="btn primary" id="eyeSave" type="button">Сақтап, келесіге өту</button><button class="btn" id="eyePrev" type="button">Артқа</button><button class="btn ghost" id="eyeNext" type="button">Өткізу</button></div>' +
       (e.plant ? '<p class="small muted">Бұл сурет бағаланған: ' + esc(nameOf(e.plant === 'unknown' ? 'unknown' : e.plant)) + ' – ' + esc(nameOf(e.label)) + '</p>' : '') + '</div></div></div>';
     $('cmpBody').innerHTML = h;
@@ -98,7 +98,7 @@
     next();
   }
   function compactAI(j) {
-    var r = j.result || {}, p = r.plant || {}, fs = (r.findings || []).filter(function (f) { return f.kind !== 'пайдалы жәндік'; }).sort(function (a, b) { return (b.confidence || 0) - (a.confidence || 0); });
+    var r = j.result || {}, p = r.plant || {}, fs = (r.findings || []).slice().sort(function (a, b) { return (b.confidence || 0) - (a.confidence || 0); });
     return { plant_kb: p.kb_id || null, latin: p.latin || '', kk: p.kk || '', pconf: p.confidence, is_plant: r.is_plant !== false,
       label: fs.length ? (fs[0].kb_id || '?' + fs[0].name) : 'healthy', label2: fs[1] ? (fs[1].kb_id || '?' + fs[1].name) : null, conf: fs.length ? fs[0].confidence : null,
       sick: fs.length > 0, sev: r.severity_percent, pn: j.plantnet && j.plantnet[0] ? j.plantnet[0].latin : null, model: j.model };
@@ -188,9 +188,9 @@
   function reportText(R) {
     var M = R.M, ne = M.eye.sp[1], na = M.ai.sp[1], nc = M.ci.bin[1];
     var s = 'Салыстырмалы зерттеуге мамандар белгілеген ' + T.length + ' жапырақ суреті алынды (PlantVillage – 50, PlantDoc – 50). ';
-    if (ne) s += 'Көзбен бағалауда (' + (st.rater || 'бағалаушы') + ', ' + ne + ' сурет) өсімдік түрі ' + pT(P(M.eye.sp[0], ne)) + ', ауру немесе зиянкес ' + pT(P(M.eye.ds[0], ne)) + ' жағдайда дұрыс анықталды, сау мен ауруды ажырату дәлдігі ' + pT(P(M.eye.bin[0], ne)) + ' болды. ';
+    if (ne) s += 'Көзбен бағалауда (' + (st.rater || 'бағалаушы') + ', ' + ne + ' сурет) өсімдік түрі ' + pT(P(M.eye.sp[0], ne)) + ', ауру ' + pT(P(M.eye.ds[0], ne)) + ' жағдайда дұрыс анықталды, сау мен ауруды ажырату дәлдігі ' + pT(P(M.eye.bin[0], ne)) + ' болды. ';
     if (nc) s += 'Түс индикаторы сау мен ауруды ' + pT(P(M.ci.bin[0], nc)) + ' жағдайда дұрыс ажыратты (Коэн каппасы ' + kText(kappa(M.ci.kb)) + '). ';
-    if (na) s += 'AI көру модулі (' + na + ' сурет) өсімдік түрін ' + pT(P(M.ai.sp[0], na)) + ', ауру немесе зиянкесті ' + pT(P(M.ai.ds[0], na)) + ' жағдайда дұрыс атады, сау мен ауруды ажырату дәлдігі ' + pT(P(M.ai.bin[0], na)) + ' (каппа ' + kText(kappa(M.ai.kb)) + '). ';
+    if (na) s += 'AI көру модулі (' + na + ' сурет) өсімдік түрін ' + pT(P(M.ai.sp[0], na)) + ', ауруды ' + pT(P(M.ai.ds[0], na)) + ' жағдайда дұрыс атады, сау мен ауруды ажырату дәлдігі ' + pT(P(M.ai.bin[0], na)) + ' (каппа ' + kText(kappa(M.ai.kb)) + '). ';
     if (R.agree.length) s += 'Көзбен бағалау мен AI қорытындысының сәйкестігі: ' + pT(P(R.agree.filter(function (p) { return p[0] === p[1]; }).length, R.agree.length)) + ' (каппа ' + kText(kappa(R.agree)) + ').';
     return s;
   }
@@ -199,9 +199,9 @@
     var row = function (name, m, ci) {
       return '<tr><td>' + name + '</td><td>' + (ci ? '–' : pT(P(m.sp[0], m.sp[1]))) + '</td><td>' + (ci ? '–' : pT(P(m.ds[0], m.ds[1]))) + '</td><td>' + pT(P(m.bin[0], m.bin[1])) + '</td><td>' + kText(kappa(m.kb)) + '</td><td>' + (ci ? '–' : kText(kappa(m.kd))) + '</td><td>' + m.bin[1] + '</td></tr>';
     };
-    var h = '<div class="cmp-card"><h3>Тәсілдерді салыстыру (эталон – маманның диагнозы)</h3><div class="tbl-wrap"><table class="cmp-table"><thead><tr><th>Тәсіл</th><th>Өсімдік түрі дұрыс</th><th>Ауру/зиянкес дұрыс</th><th>Сау/ауру дұрыс</th><th>Каппа (сау/ауру)</th><th>Каппа (диагноз)</th><th>Сурет саны</th></tr></thead><tbody>' +
+    var h = '<div class="cmp-card"><h3>Тәсілдерді салыстыру (эталон – маманның диагнозы)</h3><div class="tbl-wrap"><table class="cmp-table"><thead><tr><th>Тәсіл</th><th>Өсімдік түрі дұрыс</th><th>Ауру дұрыс</th><th>Сау/ауру дұрыс</th><th>Каппа (сау/ауру)</th><th>Каппа (диагноз)</th><th>Сурет саны</th></tr></thead><tbody>' +
       row('Көзбен бағалау' + (st.rater ? ' (' + esc(st.rater) + ')' : ''), M.eye) + row('Түс индикаторы', M.ci, true) + row('AI көру модулі', M.ai) + '</tbody></table></div>' +
-      bars([{ l: 'Өсімдік түрі', v: [P(M.eye.sp[0], M.eye.sp[1]), null, P(M.ai.sp[0], M.ai.sp[1])] }, { l: 'Ауру/зиянкес', v: [P(M.eye.ds[0], M.eye.ds[1]), null, P(M.ai.ds[0], M.ai.ds[1])] }, { l: 'Сау / ауру', v: [P(M.eye.bin[0], M.eye.bin[1]), P(M.ci.bin[0], M.ci.bin[1]), P(M.ai.bin[0], M.ai.bin[1])] }]) +
+      bars([{ l: 'Өсімдік түрі', v: [P(M.eye.sp[0], M.eye.sp[1]), null, P(M.ai.sp[0], M.ai.sp[1])] }, { l: 'Ауру', v: [P(M.eye.ds[0], M.eye.ds[1]), null, P(M.ai.ds[0], M.ai.ds[1])] }, { l: 'Сау / ауру', v: [P(M.eye.bin[0], M.eye.bin[1]), P(M.ci.bin[0], M.ci.bin[1]), P(M.ai.bin[0], M.ai.bin[1])] }]) +
       '<p class="small muted">Каппа – кездейсоқ сәйкестікті шегеріп есептелетін келісім көрсеткіші (Коэн, 1960): 0,8-ден жоғары – өте жоғары, 0,6–0,8 – едәуір, 0,4–0,6 – орташа келісім.</p></div>';
     var src = Object.keys(R.bySrc).map(function (k) { var S = R.bySrc[k]; return '<tr><td>' + esc(k) + (k === 'PlantDoc' ? ' (табиғи орта)' : ' (зертхана фоны)') + '</td><td>' + pT(P(S.eye[0], S.eye[1])) + '</td><td>' + pT(P(S.ai[0], S.ai[1])) + '</td><td>' + pT(P(S.eye[2], S.eye[3])) + '</td><td>' + pT(P(S.ci[0], S.ci[1])) + '</td><td>' + pT(P(S.ai[2], S.ai[3])) + '</td></tr>'; }).join('');
     h += '<div class="cmp-card"><h3>Сурет көзі бойынша</h3><div class="tbl-wrap"><table class="cmp-table"><thead><tr><th>Жиынтық</th><th>Диагноз: көз</th><th>Диагноз: AI</th><th>Сау/ауру: көз</th><th>Сау/ауру: түс индикаторы</th><th>Сау/ауру: AI</th></tr></thead><tbody>' + src + '</tbody></table></div></div>';
